@@ -1,48 +1,133 @@
 """
-Database Schemas
+HamroSwasthya Database Schemas
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model below maps to a MongoDB collection with the lowercase
+name of the class.
 """
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional, List, Literal, Dict
+from datetime import datetime
 
-from pydantic import BaseModel, Field
-from typing import Optional
+# Core user for BloodLink + app auth
+class AppUser(BaseModel):
+    name: str
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None  # city/area
+    age: Optional[int] = Field(None, ge=0, le=120)
+    blood_group: Optional[str] = Field(None, description="A+, A-, B+, B-, AB+, AB-, O+, O-")
+    karma_points: int = 0
 
-# Example schemas (replace with your own):
+# Emergency/SOS settings and emergency contacts
+class EmergencyContact(BaseModel):
+    name: str
+    phone: str
+    relation: Optional[str] = None
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class SOSSetting(BaseModel):
+    user_id: str
+    contacts: List[EmergencyContact] = []
+    preferred_hospital: Optional[str] = None
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+# Family health diary
+class MedicalHistoryItem(BaseModel):
+    date: Optional[datetime] = None
+    note: str
 
-# Add your own schemas here:
-# --------------------------------------------------
+class VaccinationItem(BaseModel):
+    name: str
+    due_date: Optional[datetime] = None
+    completed: bool = False
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class HealthUpdate(BaseModel):
+    date: Optional[datetime] = None
+    update: str
+
+class BloodSugarLog(BaseModel):
+    date: Optional[datetime] = None
+    value_mgdl: float
+    period: Literal['fasting','post-meal','random'] = 'random'
+
+class MedicineReminder(BaseModel):
+    name: str
+    dosage: str
+    time: str  # HH:MM
+    days: List[str] = []  # ['Mon','Tue',...]
+    active: bool = True
+
+class Appointment(BaseModel):
+    title: str
+    date: datetime
+    location: Optional[str] = None
+    doctor: Optional[str] = None
+
+class FamilyProfile(BaseModel):
+    user_id: str
+    photo_url: Optional[str] = None
+    name: str
+    age: Optional[int] = None
+    blood_group: Optional[str] = None
+    allergies: Optional[str] = None
+    conditions: Optional[str] = None
+    medical_history: List[MedicalHistoryItem] = []
+    vaccinations: List[VaccinationItem] = []
+    health_updates: List[HealthUpdate] = []
+    sugar_logs: List[BloodSugarLog] = []
+    medicine_reminders: List[MedicineReminder] = []
+    appointments: List[Appointment] = []
+
+# BloodLink Nepal
+class BloodRequest(BaseModel):
+    requester_id: str
+    location: str
+    blood_group: str
+    units_needed: int
+    urgency: Literal['low','medium','high'] = 'medium'
+    note: Optional[str] = None
+    status: Literal['open','matched','fulfilled','cancelled'] = 'open'
+
+# Notices & alerts
+class HealthNotice(BaseModel):
+    title: str
+    body: str
+    city: Optional[str] = None
+    region: Optional[str] = None
+    tags: List[str] = []
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+
+# Medicine ordering
+class MedicineItem(BaseModel):
+    name: str
+    quantity: int = 1
+
+class MedicineOrder(BaseModel):
+    user_id: str
+    items: List[MedicineItem]
+    address: str
+    delivery_charge: float
+    status: Literal['placed','confirmed','out-for-delivery','delivered','cancelled'] = 'placed'
+    tracking_code: Optional[str] = None
+
+# Hospitals & appointments
+class Hospital(BaseModel):
+    name: str
+    city: Optional[str] = None
+    departments: List[str] = []
+
+class Doctor(BaseModel):
+    name: str
+    department: str
+    hospital_id: str
+    experience_years: Optional[int] = None
+
+class Booking(BaseModel):
+    user_id: str
+    doctor_id: str
+    date: datetime
+    token: Optional[int] = None
+    status: Literal['booked','cancelled','completed'] = 'booked'
+
+class TokenFeed(BaseModel):
+    doctor_id: str
+    current_token: int = 0
